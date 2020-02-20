@@ -50,7 +50,7 @@
 #include "fstorage.h"
 #include "m_ble.h"
 #include "m_ble_flash.h"
-#include "drv_nfc.h"
+//#include "drv_nfc.h"
 #include "thingy_config.h"
 #include "advertiser_beacon.h"
 #include "pca20020.h"
@@ -62,6 +62,9 @@
 #include "nrf_log.h"
 #include "macros_common.h"
 
+#ifdef BLE_DFU_APP_SUPPORT
+   #undef BLE_DFU_APP_SUPPORT
+#endif
 #ifdef BLE_DFU_APP_SUPPORT
     #include "ble_dfu.h"
 #endif // BLE_DFU_APP_SUPPORT
@@ -82,10 +85,12 @@ static uint16_t                   m_conn_handle = BLE_CONN_HANDLE_INVALID;      
 static m_ble_evt_handler_t        m_evt_handler = 0;
 static m_ble_service_handle_t   * m_service_handles = 0;
 static uint32_t                   m_service_num = 0;
+#if 0
 static ble_tcs_t                  m_tcs;
 static ble_tcs_params_t         * m_ble_config;
 static const ble_tcs_params_t     m_ble_default_config = THINGY_CONFIG_DEFAULT;
 static ble_tcs_mtu_t              m_mtu;
+#endif
 static bool                       m_flash_disconnect = false;
 static bool                       m_major_minor_fw_ver_changed = false;
 static char                       m_mac_addr[SUPPORT_FUNC_MAC_ADDR_STR_LEN];            /**< The device MAC address. */
@@ -188,19 +193,32 @@ static uint32_t gap_params_init(void)
 
     BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&sec_mode);
 
+#if 0
     err_code = sd_ble_gap_device_name_set(&sec_mode,
                                           m_ble_config->dev_name.name,
                                           strlen((const char *)m_ble_config->dev_name.name));
+#endif
+    err_code = sd_ble_gap_device_name_set(&sec_mode,
+                                          (const uint8_t*) DEVICE_NAME,
+                                          strlen(DEVICE_NAME));
+
     APP_ERROR_CHECK(err_code);
 
     memset(&gap_conn_params, 0, sizeof(gap_conn_params));
 
+#if 0
     gap_conn_params.min_conn_interval = m_ble_config->conn_params.min_conn_int;
     gap_conn_params.max_conn_interval = m_ble_config->conn_params.max_conn_int;
     gap_conn_params.slave_latency     = m_ble_config->conn_params.slave_latency;
     gap_conn_params.conn_sup_timeout  = m_ble_config->conn_params.sup_timeout;
+#endif
+    gap_conn_params.min_conn_interval = (uint16_t)MSEC_TO_UNITS(MIN_CONN_INTERVAL_MS, UNIT_1_25_MS);
+    gap_conn_params.max_conn_interval = MSEC_TO_UNITS(MAX_CONN_INTERVAL_MS, UNIT_1_25_MS);
+    gap_conn_params.slave_latency     = SLAVE_LATENCY;
+    gap_conn_params.conn_sup_timeout  = MSEC_TO_UNITS(CONN_SUP_TIMEOUT_MS, UNIT_10_MS);
 
     err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
+#if 0
     if (err_code == NRF_ERROR_INVALID_PARAM)
     {
         // Use default config
@@ -226,7 +244,9 @@ static uint32_t gap_params_init(void)
             return err_code;
         }
     }
-    else if (err_code != NRF_SUCCESS)
+    else 
+#endif
+    if (err_code != NRF_SUCCESS)
     {
         return err_code;
     }
@@ -289,10 +309,16 @@ static uint32_t conn_params_init(void)
     memset(&cp_init, 0, sizeof(cp_init));
     memset(&gap_conn_params, 0, sizeof(gap_conn_params));
 
+#if 0
     gap_conn_params.min_conn_interval = m_ble_config->conn_params.min_conn_int;
     gap_conn_params.max_conn_interval = m_ble_config->conn_params.max_conn_int;
     gap_conn_params.slave_latency     = m_ble_config->conn_params.slave_latency;
     gap_conn_params.conn_sup_timeout  = m_ble_config->conn_params.sup_timeout;
+#endif
+    gap_conn_params.min_conn_interval = (uint16_t)MSEC_TO_UNITS(MIN_CONN_INTERVAL_MS, UNIT_1_25_MS);
+    gap_conn_params.max_conn_interval = MSEC_TO_UNITS(MAX_CONN_INTERVAL_MS, UNIT_1_25_MS);
+    gap_conn_params.slave_latency     = SLAVE_LATENCY;
+    gap_conn_params.conn_sup_timeout  = MSEC_TO_UNITS(CONN_SUP_TIMEOUT_MS, UNIT_10_MS);
 
     cp_init.p_conn_params                  = &gap_conn_params;
     cp_init.first_conn_params_update_delay = FIRST_CONN_PARAMS_UPDATE_DELAY;
@@ -405,9 +431,11 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
                                                        NRF_BLE_MAX_MTU_SIZE);
             APP_ERROR_CHECK(err_code);
 
+#if 0
             m_mtu.size = p_ble_evt->evt.gatts_evt.params.exchange_mtu_request.client_rx_mtu;
             err_code = ble_tcs_mtu_set(&m_tcs, &m_mtu);
             APP_ERROR_CHECK(err_code);
+#endif
         }
         break; // BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST
 
@@ -455,7 +483,9 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
         }
     }
 
+#if 0
     ble_tcs_on_ble_evt(&m_tcs, p_ble_evt);
+#endif
 #ifdef BLE_DFU_APP_SUPPORT
     ble_dfu_on_ble_evt(&m_dfus, p_ble_evt);
 #endif // BLE_DFU_APP_SUPPORT
@@ -474,7 +504,9 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 static void sys_evt_dispatch(uint32_t evt_id)
 {
     fs_sys_event_handler(evt_id);
+#if 0
     app_beacon_on_sys_evt(evt_id);
+#endif
     ble_advertising_on_sys_evt(evt_id);
 
     if ( (evt_id == NRF_EVT_FLASH_OPERATION_SUCCESS) ||
@@ -600,7 +632,11 @@ static uint32_t advertising_init(void)
 {
     uint32_t      err_code;
     ble_advdata_t advdata;
-    ble_uuid_t    adv_uuids = {BLE_UUID_TCS_SERVICE, m_tcs.uuid_type};
+    ble_uuid_t    adv_uuids = {
+#if 0
+       BLE_UUID_TCS_SERVICE, m_tcs.uuid_type
+#endif
+    };
     
     // Build advertising data struct to pass into @ref ble_advertising_init.
     memset(&advdata, 0, sizeof(advdata));
@@ -608,13 +644,17 @@ static uint32_t advertising_init(void)
     advdata.name_type                       = BLE_ADVDATA_FULL_NAME;
     advdata.include_appearance              = false;
     advdata.flags                           = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
-    advdata.uuids_more_available.uuid_cnt   = 1;
+    advdata.uuids_more_available.uuid_cnt   = 0;
     advdata.uuids_more_available.p_uuids    = &adv_uuids;
 
     ble_adv_modes_config_t options = {0};
     options.ble_adv_fast_enabled  = true;
+#if 0
     options.ble_adv_fast_interval = m_ble_config->adv_params.interval;
     options.ble_adv_fast_timeout  = m_ble_config->adv_params.timeout;
+#endif
+    options.ble_adv_fast_interval = 32;
+    options.ble_adv_fast_timeout  = 30;
     
     // Build scan response data struct to pass into @ref ble_advertising_init.
     ble_advdata_t scan_response_data;
@@ -646,6 +686,7 @@ static uint32_t advertising_init(void)
 }
 
 
+#if 0
 /**@brief Function for handling a BeaconAdvertiser error.
  *
  * @param[in]   nrf_error   Error code containing information about what went wrong.
@@ -908,6 +949,7 @@ static uint32_t thingy_config_init(void)
 
     return NRF_SUCCESS;
 }
+#endif
 
 
 /**@brief Function for initializing the ble services.
@@ -916,8 +958,10 @@ static uint32_t services_init(m_ble_service_handle_t * p_service_handles, uint32
 {
     uint32_t err_code;
 
+#if 0
     err_code = thingy_config_init();
     APP_ERROR_CHECK(err_code);
+#endif
     
     for (uint32_t i = 0; i < num_services; i++)
     {
@@ -949,7 +993,7 @@ static uint32_t services_init(m_ble_service_handle_t * p_service_handles, uint32
     return NRF_SUCCESS;
 }
 
-
+#if 0
 uint32_t nfc_init(void)
 {
     uint32_t err_code;
@@ -1004,7 +1048,7 @@ uint32_t nfc_init(void)
 
     return NRF_SUCCESS;
 }
-
+#endif
 
 uint32_t m_ble_init(m_ble_init_t * p_params)
 {
@@ -1037,6 +1081,7 @@ uint32_t m_ble_init(m_ble_init_t * p_params)
         return err_code;
     }
     
+#if 0
     /**@brief Load configuration from flash. */
     err_code = m_ble_flash_init(&m_ble_default_config, &m_ble_config);
 
@@ -1053,6 +1098,7 @@ uint32_t m_ble_init(m_ble_init_t * p_params)
         NRF_LOG_ERROR("Thingy_config_verify failed - %d\r\n", err_code);
         return err_code;
     }
+#endif
 
     err_code = gap_params_init();
 
@@ -1103,7 +1149,8 @@ uint32_t m_ble_init(m_ble_init_t * p_params)
     }
     
     NRF_LOG_RAW_INFO("MAC addr-> %s \r\n", nrf_log_push(m_mac_addr));
-    
+   
+#if 0 
     err_code = nfc_init();
 
     if (err_code != NRF_SUCCESS)
@@ -1111,9 +1158,11 @@ uint32_t m_ble_init(m_ble_init_t * p_params)
         NRF_LOG_ERROR("nfc init failed - %d\r\n", err_code);
         return err_code;
     }
+#endif
     
     nrf_delay_ms (10);
 
+#if 0
     err_code = timeslot_init();
 
     if (err_code != NRF_SUCCESS)
@@ -1121,6 +1170,7 @@ uint32_t m_ble_init(m_ble_init_t * p_params)
         NRF_LOG_ERROR("timeslot_init failed - %d\r\n", err_code);
         return err_code;
     }
+#endif
 
     return NRF_SUCCESS;
 }

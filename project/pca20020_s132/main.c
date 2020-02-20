@@ -48,23 +48,23 @@
 #include <string.h>
 #include "nordic_common.h"
 #include "nrf.h"
-#include "ble_hci.h"
+//#include "ble_hci.h"
 #include "ble_advdata.h"
 #include "ble_advertising.h"
 #include "ble_conn_params.h"
 #include "softdevice_handler.h"
 #include "app_scheduler.h"
-#include "app_button.h"
 #include "app_util_platform.h"
 #include "m_ble.h"
-#include "m_environment.h"
-#include "m_sound.h"
-#include "m_motion.h"
-#include "m_ui.h"
+//#include "m_environment.h"
+//#include "m_sound.h"
+//#include "m_motion.h"
+//#include "m_ui.h"
 #include "m_batt_meas.h"
 #include "drv_ext_light.h"
 #include "drv_ext_gpio.h"
 #include "nrf_delay.h"
+#include "nrf_drv_rng.h"
 #include "twi_manager.h"
 #include "support_func.h"
 #include "pca20020.h"
@@ -80,6 +80,17 @@
 
 static const nrf_drv_twi_t     m_twi_sensors = NRF_DRV_TWI_INSTANCE(TWI_SENSOR_INSTANCE);
 static m_ble_service_handle_t  m_ble_service_handles[THINGY_SERVICES_MAX];
+APP_TIMER_DEF(m_led_timer_id);
+static drv_ext_light_rgb_sequence_t m_led_sequence =
+{
+    .sequence_vals.on_time_ms = 35,
+    .sequence_vals.on_intensity = 20 * 2.55,
+    .sequence_vals.off_intensity = 0,
+    .sequence_vals.fade_in_time_ms = 2000,
+    .sequence_vals.fade_out_time_ms = 500,
+    .sequence_vals.off_time_ms = 0
+};
+
 
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
 {
@@ -88,8 +99,10 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
         NRF_LOG_ERROR(" id = %d, pc = %d, file = %s, line number: %d, error code = %d = %s \r\n", \
         id, pc, nrf_log_push((char*)err_info->p_file_name), err_info->line_num, err_info->err_code, nrf_log_push((char*)nrf_strerror_find(err_info->err_code)));
     #endif
-    
+   
+#if 0 
     (void)m_ui_led_set_event(M_UI_ERROR);
+#endif
     NRF_LOG_FINAL_FLUSH();
     nrf_delay_ms(5);
     
@@ -116,6 +129,7 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
+#if 0
 /**@brief Function for putting Thingy into sleep mode.
  *
  * @note This function will not return.
@@ -125,8 +139,10 @@ static void sleep_mode_enter(void)
     uint32_t err_code;
 
     NRF_LOG_INFO("Entering sleep mode \r\n");
+#if 0
     err_code = m_motion_sleep_prepare(true);
     APP_ERROR_CHECK(err_code);
+#endif
 
     err_code = support_func_configure_io_shutdown();
     APP_ERROR_CHECK(err_code);
@@ -162,6 +178,7 @@ static void sleep_mode_enter(void)
         APP_ERROR_CHECK(err_code);
     #endif
 }
+#endif
 
 
 /**@brief Function for placing the application in low power state while waiting for events.
@@ -243,10 +260,111 @@ static void thingy_ble_evt_handler(m_ble_evt_t * p_evt)
 
         case thingy_ble_evt_timeout:
             NRF_LOG_INFO(NRF_LOG_COLOR_CODE_YELLOW "Thingy_ble_evt_timeout \r\n");
+#if  0
             sleep_mode_enter();
             NVIC_SystemReset();
+#endif
             break;
     }
+}
+
+
+/**@brief Function for initializing the leds.
+ */
+static uint32_t led_init(const nrf_drv_twi_t* p_twi_instance)
+{
+    uint32_t                        err_code;
+    static drv_sx1509_cfg_t         sx1509_cfg;
+    drv_ext_light_init_t            led_init;
+    //lint --e{651} Potentially confusing initializer
+    static const drv_ext_light_conf_t led_conf[DRV_EXT_LIGHT_NUM] = DRV_EXT_LIGHT_CFG;
+
+    static const nrf_drv_twi_config_t twi_config =
+    {
+        .scl                = TWI_SCL,
+        .sda                = TWI_SDA,
+        .frequency          = NRF_TWI_FREQ_100K,
+        .interrupt_priority = APP_IRQ_PRIORITY_LOW
+    };
+
+    sx1509_cfg.twi_addr       = SX1509_ADDR;
+    sx1509_cfg.p_twi_instance = p_twi_instance;
+    sx1509_cfg.p_twi_cfg      = &twi_config;
+
+    led_init.p_light_conf        = led_conf;
+    led_init.num_lights          = DRV_EXT_LIGHT_NUM;
+    led_init.clkx_div            = DRV_EXT_LIGHT_CLKX_DIV_8;
+    led_init.p_twi_conf          = &sx1509_cfg;
+    led_init.resync_pin          = SX_RESET;
+
+    err_code = drv_ext_light_init(&led_init, false);
+    APP_ERROR_CHECK(err_code);
+
+    (void)drv_ext_light_off(DRV_EXT_RGB_LED_SENSE);
+    (void)drv_ext_light_off(DRV_EXT_RGB_LED_LIGHTWELL);
+    
+    nrf_gpio_cfg_output(MOS_1);
+    nrf_gpio_cfg_output(MOS_2);
+    nrf_gpio_cfg_output(MOS_3);
+    nrf_gpio_cfg_output(MOS_4);
+    nrf_gpio_pin_clear(MOS_1);
+    nrf_gpio_pin_clear(MOS_2);
+    nrf_gpio_pin_clear(MOS_3);
+    nrf_gpio_pin_clear(MOS_4);
+
+    return NRF_SUCCESS;
+}
+
+
+/**@brief Function for getting random color mix.
+ */
+static drv_ext_light_color_mix_t get_random_color_mix(void)
+{
+    uint32_t err_code;
+    uint8_t  bytes_available = 0;
+    uint8_t retries = 0;
+    uint8_t data;
+
+    nrf_drv_rng_bytes_available(&bytes_available);
+    
+    while (bytes_available < 1)
+    {
+        retries++;
+        NRF_LOG_WARNING("Too few random bytes available. Trying again \r\n");
+        nrf_drv_rng_bytes_available(&bytes_available);
+        nrf_delay_ms(5);
+        
+        if (retries > 5)    // Return after n attempts.
+        {
+            return NRF_ERROR_TIMEOUT;
+        }
+    }
+    
+    NRF_LOG_INFO("Available random bytes: %d \r\n", bytes_available);
+
+    err_code = nrf_drv_rng_rand(&data, 1);
+    APP_ERROR_CHECK(err_code);
+    
+    NRF_LOG_INFO("Random value (hex): %02x\r\n", data);
+    
+    return (drv_ext_light_color_mix_t) ((int) data * ((int) DRV_EXT_LIGHT_COLOR_WHITE - (int) DRV_EXT_LIGHT_COLOR_GREEN) / UINT8_MAX + (int) DRV_EXT_LIGHT_COLOR_GREEN);
+}
+
+
+/**@brief Function for setting random color sequence.
+ */
+static void m_led_timer_handler(void* context)
+{
+    uint32_t err_code;
+
+    (void) context;
+
+    err_code = drv_ext_light_off(DRV_EXT_RGB_LED_LIGHTWELL);
+    APP_ERROR_CHECK(err_code);
+
+    m_led_sequence.color = get_random_color_mix();
+    err_code = drv_ext_light_rgb_sequence(DRV_EXT_RGB_LED_LIGHTWELL, &m_led_sequence);
+    APP_ERROR_CHECK(err_code);
 }
 
 
@@ -255,9 +373,11 @@ static void thingy_ble_evt_handler(m_ble_evt_t * p_evt)
 static void thingy_init(void)
 {
     uint32_t                 err_code;
+#if 0
     m_ui_init_t              ui_params;
     m_environment_init_t     env_params;
     m_motion_init_t          motion_params;
+#endif
     m_ble_init_t             ble_params;
     batt_meas_init_t         batt_meas_init = BATT_MEAS_PARAM_CFG;
 
@@ -265,12 +385,16 @@ static void thingy_init(void)
     err_code = twi_manager_init(APP_IRQ_PRIORITY_THREAD);
     APP_ERROR_CHECK(err_code);
 
+#if 0
     /**@brief Initialize LED and button UI module. */
     ui_params.p_twi_instance = &m_twi_sensors;
     err_code = m_ui_init(&m_ble_service_handles[THINGY_SERVICE_UI],
                          &ui_params);
+#endif
+    err_code = led_init(&m_twi_sensors);
     APP_ERROR_CHECK(err_code);
 
+#if 0
     /**@brief Initialize environment module. */
     env_params.p_twi_instance = &m_twi_sensors;
     err_code = m_environment_init(&m_ble_service_handles[THINGY_SERVICE_ENVIRONMENT],
@@ -286,6 +410,7 @@ static void thingy_init(void)
 
     err_code = m_sound_init(&m_ble_service_handles[THINGY_SERVICE_SOUND]);
     APP_ERROR_CHECK(err_code);
+#endif
 
     /**@brief Initialize the battery measurement. */
     batt_meas_init.evt_handler = m_batt_meas_handler;
@@ -303,7 +428,15 @@ static void thingy_init(void)
     err_code = m_ble_init(&ble_params);
     APP_ERROR_CHECK(err_code);
 
+#if 0
     err_code = m_ui_led_set_event(M_UI_BLE_DISCONNECTED);
+    APP_ERROR_CHECK(err_code);
+#endif
+
+    err_code = app_timer_create(&m_led_timer_id, APP_TIMER_MODE_REPEATED, m_led_timer_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_start(m_led_timer_id, APP_TIMER_TICKS(3500), NULL);
     APP_ERROR_CHECK(err_code);
 }
 

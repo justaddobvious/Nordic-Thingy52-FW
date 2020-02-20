@@ -2459,7 +2459,7 @@
 // <e> PDM_ENABLED - nrf_drv_pdm - PDM peripheral driver
 //==========================================================
 #ifndef PDM_ENABLED
-#define PDM_ENABLED 1
+#define PDM_ENABLED 0
 #endif
 #if  PDM_ENABLED
 // <o> PDM_CONFIG_MODE  - Mode
@@ -4193,7 +4193,7 @@
 // <e> UART_ENABLED - nrf_drv_uart - UART/UARTE peripheral driver
 //==========================================================
 #ifndef UART_ENABLED
-#define UART_ENABLED 1
+#define UART_ENABLED 0
 #endif
 #if  UART_ENABLED
 // <o> UART_DEFAULT_CONFIG_HWFC  - Hardware Flow Control
@@ -4697,7 +4697,7 @@
  
 
 #ifndef BUTTON_ENABLED
-#define BUTTON_ENABLED 1
+#define BUTTON_ENABLED 0
 #endif
 
 // <q> CRC16_ENABLED  - crc16 - CRC16 calculation routines
@@ -4724,7 +4724,7 @@
 // <e> FDS_ENABLED - fds - Flash data storage module
 //==========================================================
 #ifndef FDS_ENABLED
-#define FDS_ENABLED 1
+#define FDS_ENABLED 0
 #endif
 #if  FDS_ENABLED
 // <o> FDS_OP_QUEUE_SIZE - Size of the internal queue. 
@@ -5437,7 +5437,7 @@
  
 
 #ifndef SLIP_ENABLED
-#define SLIP_ENABLED 1
+#define SLIP_ENABLED 0
 #endif
 
 // <h> app_usbd_cdc_acm - USB CDC ACM class
@@ -5527,7 +5527,7 @@
 // <e> NRF_LOG_ENABLED - nrf_log - Logging
 //==========================================================
 #ifndef NRF_LOG_ENABLED
-#define NRF_LOG_ENABLED 0
+#define NRF_LOG_ENABLED 1
 #endif
 #if  NRF_LOG_ENABLED
 // <e> NRF_LOG_USES_COLORS - If enabled then ANSI escape code for colors is prefixed to every string
@@ -5890,7 +5890,7 @@
 // <e> NFC_HAL_ENABLED - nfc_t2t_hal - Hardware Abstraction Layer for NFC library.
 //==========================================================
 #ifndef NFC_HAL_ENABLED
-#define NFC_HAL_ENABLED 1
+#define NFC_HAL_ENABLED 0
 #endif
 #if  NFC_HAL_ENABLED
 // <o> NFCT_CONFIG_IRQ_PRIORITY  - Interrupt priority
@@ -6178,7 +6178,7 @@
 // <e> NFC_NDEF_MSG_ENABLED - nfc_ndef_msg - NFC NDEF Message generator module
 //==========================================================
 #ifndef NFC_NDEF_MSG_ENABLED
-#define NFC_NDEF_MSG_ENABLED 1
+#define NFC_NDEF_MSG_ENABLED 0
 #endif
 #if  NFC_NDEF_MSG_ENABLED
 // <o> NFC_NDEF_MSG_TAG_TYPE  - NFC Tag Type

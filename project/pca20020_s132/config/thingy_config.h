@@ -61,13 +61,15 @@
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(30000) /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                           /**< Number of attempts before giving up the connection parameter negotiation. */
 
+#if 0
 #define THINGY_SERVICE_ENVIRONMENT      0
 #define THINGY_SERVICE_MOTION           1
 #define THINGY_SERVICE_UI               2
 #define THINGY_SERVICE_SOUND            3
-#define THINGY_SERVICE_BATTERY          4
+#endif
+#define THINGY_SERVICE_BATTERY          0 //4
     
-#define THINGY_SERVICES_MAX             5
+#define THINGY_SERVICES_MAX             1 //5
 
 /**@brief Thingy default beacon configuration. Eddystone url */
 #define THINGY_BEACON_ADV_INTERVAL      760                 /**< The Beacon's advertising interval, in milliseconds*/
