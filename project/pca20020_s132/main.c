@@ -317,18 +317,19 @@ static uint32_t led_init(const nrf_drv_twi_t* p_twi_instance)
 }
 
 
-/**@brief Function for getting random color mix.
+/**@brief Function for getting random number.
  */
-static drv_ext_light_color_mix_t get_random_color_mix(void)
+static uint16_t get_random_number(void)
 {
     uint32_t err_code;
     uint8_t  bytes_available = 0;
     uint8_t retries = 0;
-    uint8_t data;
+    uint16_t retval;
+    uint8_t data[sizeof(retval)];
 
     nrf_drv_rng_bytes_available(&bytes_available);
     
-    while (bytes_available < 1)
+    while (bytes_available < sizeof(retval))
     {
         retries++;
         NRF_LOG_WARNING("Too few random bytes available. Trying again \r\n");
@@ -343,29 +344,50 @@ static drv_ext_light_color_mix_t get_random_color_mix(void)
     
     NRF_LOG_INFO("Available random bytes: %d \r\n", bytes_available);
 
-    err_code = nrf_drv_rng_rand(&data, 1);
+    err_code = nrf_drv_rng_rand(&data[0], sizeof(retval));
     APP_ERROR_CHECK(err_code);
-    
-    NRF_LOG_INFO("Random value (hex): %02x\r\n", data);
-    
-    return (drv_ext_light_color_mix_t) ((int) data * ((int) DRV_EXT_LIGHT_COLOR_WHITE - (int) DRV_EXT_LIGHT_COLOR_GREEN) / UINT8_MAX + (int) DRV_EXT_LIGHT_COLOR_GREEN);
+
+    retval = data[0] | (((uint16_t) data[1]) << 8);
+    NRF_LOG_INFO("Random value (hex): %04x\r\n", retval);
+    return retval;
 }
 
+
+/**@brief Function for getting random color mix.
+ */
+static drv_ext_light_color_mix_t get_random_color_mix(void)
+{
+    return (drv_ext_light_color_mix_t) ((unsigned) get_random_number() * ((unsigned) DRV_EXT_LIGHT_COLOR_WHITE - (unsigned) DRV_EXT_LIGHT_COLOR_GREEN + 1) / (UINT16_MAX + 1) + (unsigned) DRV_EXT_LIGHT_COLOR_GREEN);
+}
+
+static uint32_t get_random_on_time_ms(void)
+{
+   return (uint32_t) ((unsigned) get_random_number() * (2500 - 35 + 1) / (UINT16_MAX + 1) + 35);
+}
+
+static uint32_t get_random_off_time_ms(void)
+{
+   return (uint32_t) ((unsigned) get_random_number() * (2500 - 2000 + 1) / (UINT16_MAX + 1) + 2000);
+}
 
 /**@brief Function for setting random color sequence.
  */
 static void m_led_timer_handler(void* context)
 {
     uint32_t err_code;
+    uint32_t on_time_ms;
 
     (void) context;
 
     err_code = drv_ext_light_off(DRV_EXT_RGB_LED_LIGHTWELL);
     APP_ERROR_CHECK(err_code);
 
+    on_time_ms = get_random_on_time_ms();
+    m_led_sequence.sequence_vals.on_time_ms = on_time_ms;
     m_led_sequence.color = get_random_color_mix();
     err_code = drv_ext_light_rgb_sequence(DRV_EXT_RGB_LED_LIGHTWELL, &m_led_sequence);
     APP_ERROR_CHECK(err_code);
+    err_code = app_timer_start(m_led_timer_id, APP_TIMER_TICKS(get_random_off_time_ms() + on_time_ms), NULL);
 }
 
 
@@ -437,7 +459,7 @@ static void thingy_init(void)
     APP_ERROR_CHECK(err_code);
 #endif
 
-    err_code = app_timer_create(&m_led_timer_id, APP_TIMER_MODE_REPEATED, m_led_timer_handler);
+    err_code = app_timer_create(&m_led_timer_id, APP_TIMER_MODE_SINGLE_SHOT, m_led_timer_handler);
     APP_ERROR_CHECK(err_code);
 
     err_code = app_timer_start(m_led_timer_id, APP_TIMER_TICKS(3500), NULL);
