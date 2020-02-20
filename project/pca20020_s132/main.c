@@ -69,6 +69,7 @@
 #include "support_func.h"
 #include "pca20020.h"
 #include "app_error.h"
+#include "m_ocelot.h"
 
 #define  NRF_LOG_MODULE_NAME "main          "
 #include "nrf_log.h"
@@ -419,6 +420,9 @@ static void thingy_init(void)
 
     err_code = m_batt_meas_enable(BATT_MEAS_INTERVAL_MS);
     APP_ERROR_CHECK(err_code);
+
+    if (!m_ocelot_init(&m_ble_service_handles[THINGY_SERVICE_OCELOT]))
+      APP_ERROR_HANDLER(NRF_ERROR_INTERNAL);
 
     /**@brief Initialize BLE handling module. */
     ble_params.evt_handler       = thingy_ble_evt_handler;

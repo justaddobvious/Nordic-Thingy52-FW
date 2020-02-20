@@ -68,8 +68,9 @@
 #define THINGY_SERVICE_SOUND            3
 #endif
 #define THINGY_SERVICE_BATTERY          0 //4
+#define THINGY_SERVICE_OCELOT           1
     
-#define THINGY_SERVICES_MAX             1 //5
+#define THINGY_SERVICES_MAX             2 //5
 
 /**@brief Thingy default beacon configuration. Eddystone url */
 #define THINGY_BEACON_ADV_INTERVAL      760                 /**< The Beacon's advertising interval, in milliseconds*/

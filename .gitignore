@@ -1,0 +1,6 @@
+external/nano-pb
+external/ocelot
+external/sdk13/external/micro-ecc
+external/segger_rtt
+sdk_components
+_build

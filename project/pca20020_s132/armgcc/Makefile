@@ -37,6 +37,7 @@ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-ou
 
 LIBS += \
 $(abspath ../../../sdk_components/toolchain/cmsis/dsp/GCC/libarm_cortexM4lf_math.a) \
+$(abspath ../../../external/ocelot/lib/libocelot.a) \
 
 #source common to all targets
 C_SOURCE_FILES += \
@@ -85,6 +86,8 @@ $(abspath ../../../sdk_components/libraries/log/src/nrf_log_backend_serial.c) \
 $(abspath ../../../sdk_components/ble/ble_services/ble_bas/ble_bas.c) \
 $(abspath ../../../sdk_components/libraries/crc32/crc32.c) \
 $(abspath ../../../sdk_components/libraries/strerror/nrf_strerror.c) \
+$(abspath ../../../source/modules/m_ocelot.c) \
+
 #assembly files common to all targets
 ASM_SOURCE_FILES  = $(abspath ../../../sdk_components/toolchain/gcc/gcc_startup_nrf52.S)
 
@@ -133,6 +136,7 @@ INC_PATHS += -I$(abspath ../../../sdk_components/softdevice/s132/headers/nrf52)
 INC_PATHS += -I$(abspath ../../../sdk_components/toolchain)
 INC_PATHS += -I$(abspath ../../../sdk_components/toolchain/cmsis/include)
 INC_PATHS += -I$(abspath ../../../sdk_components/toolchain/gcc)
+INC_PATHS += -I$(abspath ../../../external/ocelot/include)
 
 OBJECT_DIRECTORY = _build
 LISTING_DIRECTORY = $(OBJECT_DIRECTORY)
@@ -180,7 +184,7 @@ CFLAGS += -DHAL_NFC_ENGINEERING_BC_FTPAN_WORKAROUND
 #
 CFLAGS += -mcpu=cortex-m4
 CFLAGS += -mthumb -mabi=aapcs --std=gnu99
-CFLAGS += -Wall -Werror -O0 -g3
+CFLAGS += -Wall -Werror -Os -g3
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # keep every function in separate section. This will allow linker to dump unused functions
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
@@ -189,7 +193,7 @@ CFLAGS += -fno-builtin --short-enums
 # keep every function in separate section. This will allow linker to dump unused functions
 
 LDFLAGS += -Xlinker -Map=$(LISTING_DIRECTORY)/$(OUTPUT_FILENAME).map
-LDFLAGS += -mthumb -mabi=aapcs -L $(TEMPLATE_PATH) -T$(LINKER_SCRIPT)
+LDFLAGS += -mthumb -mabi=aapcs -L $(TEMPLATE_PATH) -L../../../external/ocelot/share/ocelot -T$(LINKER_SCRIPT)
 LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # let linker to dump unused sections
