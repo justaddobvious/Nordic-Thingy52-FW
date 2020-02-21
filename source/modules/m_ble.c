@@ -409,8 +409,25 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
             // Pairing not supported.
-            err_code = sd_ble_gap_sec_params_reply(m_conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
+            //err_code = sd_ble_gap_sec_params_reply(m_conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
+         {
+            ble_gap_sec_params_t sec_params =
+            {
+               .bond = 0,
+               .mitm = 0,
+               .lesc = 0,
+               .keypress = 0,
+               .io_caps = BLE_GAP_IO_CAPS_NONE,
+               .oob = 0,
+               .min_key_size = 7,
+               .max_key_size = 16,
+               .kdist_own = {0},
+               .kdist_peer = {0}
+            };
+
+            err_code = sd_ble_gap_sec_params_reply(m_conn_handle, BLE_GAP_SEC_STATUS_SUCCESS, &sec_params, NULL);
             APP_ERROR_CHECK(err_code);
+         }
             break;
 
         case BLE_GATTS_EVT_SYS_ATTR_MISSING:
