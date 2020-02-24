@@ -70,6 +70,7 @@
 #include "pca20020.h"
 #include "app_error.h"
 #include "m_ocelot.h"
+#include "ocelot.h"
 
 #define  NRF_LOG_MODULE_NAME "main          "
 #include "nrf_log.h"
@@ -90,6 +91,26 @@ static drv_ext_light_rgb_sequence_t m_led_sequence =
     .sequence_vals.fade_in_time_ms = 2000,
     .sequence_vals.fade_out_time_ms = 500,
     .sequence_vals.off_time_ms = 0
+};
+static drv_ext_light_rgb_sequence_t m_connected_led_sequence =
+{
+    .sequence_vals.on_time_ms = 200,
+    .sequence_vals.on_intensity = 20 * 2.55,
+    .sequence_vals.off_intensity = 0,
+    .sequence_vals.fade_in_time_ms = 50,
+    .sequence_vals.fade_out_time_ms = 50,
+    .sequence_vals.off_time_ms = 200,
+    .color = DRV_EXT_LIGHT_COLOR_BLUE
+};
+static drv_ext_light_rgb_sequence_t m_solid_red_led_sequence =
+{
+    .sequence_vals.on_time_ms = 0,
+    .sequence_vals.on_intensity = 20 * 2.55,
+    .sequence_vals.off_intensity = 0,
+    .sequence_vals.fade_in_time_ms = 0,
+    .sequence_vals.fade_out_time_ms = 0,
+    .sequence_vals.off_time_ms = 0,
+    .color = DRV_EXT_LIGHT_COLOR_RED
 };
 
 
@@ -246,10 +267,22 @@ static void m_batt_meas_handler(m_batt_meas_event_t const * p_batt_meas_event)
  */
 static void thingy_ble_evt_handler(m_ble_evt_t * p_evt)
 {
+    uint32_t err_code;
+
     switch (p_evt->evt_type)
     {
         case thingy_ble_evt_connected:
             NRF_LOG_INFO(NRF_LOG_COLOR_CODE_GREEN "Thingy_ble_evt_connected \r\n");
+            app_timer_stop(m_led_timer_id);
+
+            err_code = drv_ext_light_off(DRV_EXT_RGB_LED_LIGHTWELL);
+            APP_ERROR_CHECK(err_code);
+
+            if (ocelot_is_feature_enabled(THINGY_52_ON_AIR))
+               m_connected_led_sequence.color = DRV_EXT_LIGHT_COLOR_RED;
+
+            err_code = drv_ext_light_rgb_sequence(DRV_EXT_RGB_LED_LIGHTWELL, &m_connected_led_sequence);
+            APP_ERROR_CHECK(err_code);
             break;
 
         case thingy_ble_evt_disconnected:
@@ -362,12 +395,12 @@ static drv_ext_light_color_mix_t get_random_color_mix(void)
 
 static uint32_t get_random_on_time_ms(void)
 {
-   return (uint32_t) ((unsigned) get_random_number() * (2500 - 35 + 1) / (UINT16_MAX + 1) + 35);
+    return (uint32_t) ((unsigned) get_random_number() * (2500 - 35 + 1) / (UINT16_MAX + 1) + 35);
 }
 
 static uint32_t get_random_off_time_ms(void)
 {
-   return (uint32_t) ((unsigned) get_random_number() * (2500 - 2000 + 1) / (UINT16_MAX + 1) + 2000);
+    return (uint32_t) ((unsigned) get_random_number() * (2500 - 2000 + 1) / (UINT16_MAX + 1) + 2000);
 }
 
 /**@brief Function for setting random color sequence.
@@ -385,9 +418,12 @@ static void m_led_timer_handler(void* context)
     on_time_ms = get_random_on_time_ms();
     m_led_sequence.sequence_vals.on_time_ms = on_time_ms;
     m_led_sequence.color = get_random_color_mix();
+
     err_code = drv_ext_light_rgb_sequence(DRV_EXT_RGB_LED_LIGHTWELL, &m_led_sequence);
     APP_ERROR_CHECK(err_code);
+
     err_code = app_timer_start(m_led_timer_id, APP_TIMER_TICKS(get_random_off_time_ms() + on_time_ms), NULL);
+    APP_ERROR_CHECK(err_code);
 }
 
 
@@ -459,11 +495,19 @@ static void thingy_init(void)
     APP_ERROR_CHECK(err_code);
 #endif
 
-    err_code = app_timer_create(&m_led_timer_id, APP_TIMER_MODE_SINGLE_SHOT, m_led_timer_handler);
-    APP_ERROR_CHECK(err_code);
+    if (ocelot_is_feature_enabled(THINGY_52_ON_AIR))
+    {
+       err_code = drv_ext_light_rgb_sequence(DRV_EXT_RGB_LED_LIGHTWELL, &m_solid_red_led_sequence);
+       APP_ERROR_CHECK(err_code);
+    }
+    else
+    {
+       err_code = app_timer_create(&m_led_timer_id, APP_TIMER_MODE_SINGLE_SHOT, m_led_timer_handler);
+       APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_start(m_led_timer_id, APP_TIMER_TICKS(3500), NULL);
-    APP_ERROR_CHECK(err_code);
+       err_code = app_timer_start(m_led_timer_id, APP_TIMER_TICKS(3500), NULL);
+       APP_ERROR_CHECK(err_code);
+    }
 }
 
 
